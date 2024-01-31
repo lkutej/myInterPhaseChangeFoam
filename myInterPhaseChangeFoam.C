@@ -2,10 +2,8 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | www.openfoam.com
+    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
      \\/     M anipulation  |
--------------------------------------------------------------------------------
-    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,15 +22,17 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Application
-    interPhaseChangeFoam
+    myInterPhaseChangeFoam
 
 Group
     grpMultiphaseSolvers
 
 Description
-    Solver for two incompressible, isothermal immiscible fluids with
-    phase-change (e.g. cavitation).
-    Uses VOF (volume of fluid) phase-fraction based interface capturing.
+    Solver for 2 incompressible, non-isothermal immiscible fluids with phase-change
+    (e.g. cavitation).  Uses a VOF (volume of fluid) phase-fraction based
+    interface capturing approach. Capable of simulation of nucleate, transition,
+    and film boiling. Saturation pressure is calculated as a function of temperature
+    using August-Roche-Magnus formula.
 
     The momentum and other fluid properties are of the "mixture" and a
     single momentum equation is solved.
@@ -58,17 +58,10 @@ Description
 
 int main(int argc, char *argv[])
 {
-    argList::addNote
-    (
-        "Solver for two incompressible, isothermal immiscible fluids with"
-        " phase-change.\n"
-        "Uses VOF (volume of fluid) phase-fraction based interface capturing."
-    );
-
     #include "postProcess.H"
 
     #include "addCheckCaseOptions.H"
-    #include "setRootCaseLists.H"
+    #include "setRootCase.H"
     #include "createTime.H"
     #include "createMesh.H"
     #include "createControl.H"
@@ -89,7 +82,7 @@ int main(int argc, char *argv[])
         #include "CourantNo.H"
         #include "setDeltaT.H"
 
-        ++runTime;
+        runTime++;
 
         Info<< "Time = " << runTime.timeName() << nl << endl;
 
@@ -128,7 +121,17 @@ int main(int argc, char *argv[])
                 turbulence->correct();
             }
         }
-
+/////////////////////////////////////////////// Milad:Temperature transport Equation is added here.
+	fvScalarMatrix TEqn
+	(
+		fvm::ddt(T)
+		+ fvm::div(phi, T)
+		- fvm::laplacian(DT, T)
+	);
+	TEqn.solve();
+		#include "calcPSatField.H"      //Milad: Saturation pressure is calculated here.
+	mixture->correct();
+//////////////////////////////////////////////
         runTime.write();
 
         runTime.printExecutionTime(Info);
